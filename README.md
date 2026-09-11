@@ -9,16 +9,25 @@ self-contained dsh plugin package that
    system-prompt section, so the skills auto-trigger from the first turn of every session with
    no per-session opt-in.
 
-The skill content is **not** vendored here: it is installed from the original author's
-repository as an npm dependency (`"superpowers": "github:obra/superpowers#v6.3.0"`). This
-repository ships the dsh adapter only — the plugin module, the bundle patch, the tool mapping,
-tests and docs. See [references/CREDITS.md](references/CREDITS.md).
+The package has **no dependencies** and needs no build step. The skills travel inside it:
+`skills/` is a verbatim copy of the upstream Superpowers skills tree at the tag recorded in
+`package.json` (`upstream.tag`), plus this adapter's own `references/dsh-tools.md` and the
+one-line dsh pointer in `skills/using-superpowers/SKILL.md`. Upstream is MIT, Copyright (c)
+2025 Jesse Vincent — see [LICENSE.superpowers](LICENSE.superpowers) and
+[references/CREDITS.md](references/CREDITS.md). `npm run sync-skills` re-syncs that tree
+against a newer upstream checkout and reports the drift.
+
+Bundling is deliberate: a `github:obra/superpowers` dependency would make the skill source an
+*exotic subdependency*, which pnpm refuses to install
+(`ERR_PNPM_EXOTIC_SUBDEP: Exotic dependency "superpowers" (resolved via git-repository) is not
+allowed in subdependencies`) — every user's install would fail. Shipping the tree keeps
+`dsh plugin add` a plain, offline-capable install.
 
 ## Install
 
 Requirements: a working dsh install (`dsh plugin`, plus the app on `PATH`) and Node 18 or
-newer. The adapter itself has no dependencies and needs no build step, so installation never
-triggers pnpm's build approval.
+newer. The adapter is dependency-free and pure JS, so installation never triggers pnpm's build
+approval and needs no network beyond the repository itself.
 
 ```bash
 # from GitHub (canonical)
@@ -31,7 +40,7 @@ dsh plugin --profile web add link:/path/to/dsh_superpowers
 `dsh plugin` runs pnpm inside `$DSH_HOME/profiles/<name>/` and then reconciles the profile:
 the package declares `dsh.bundle` in its `package.json`, so it is appended to
 `dsh.profile.bundles` and its `cordis.patch.yml` is layered into the composed configuration.
-Install also fetches the pinned `superpowers` dependency, which is where the skills come from.
+The skills come from the copy inside the installed package — nothing else is fetched.
 
 **Restart the harness afterwards** — bundle patches are read at boot.
 
@@ -62,18 +71,38 @@ The first thing that should happen is the `brainstorming` skill loading — befo
 
 ## Where the skills come from
 
-The skills root is resolved in this order, and the first candidate containing
+`skills/` in this package is the Superpowers skills tree, copied from upstream at the tag in
+`package.json` (`upstream.tag`, currently `v6.3.0`), with two dsh-owned additions:
+
+- `skills/using-superpowers/references/dsh-tools.md` — this adapter's tool mapping,
+- one line in `skills/using-superpowers/SKILL.md`'s "Platform Adaptation" list pointing dsh at
+  that file (the single `SKILL.md` edit the Superpowers porting guide allows).
+
+The skills root is resolved at load time in this order, and the first candidate containing
 `using-superpowers/SKILL.md` wins:
 
 1. the plugin's `skillsDir` config
 2. the `SUPERPOWERS_SKILLS_DIR` environment variable
-3. `skills/` inside this package (an adapter that vendors the skills next to its entry point)
-4. `../skills` beside this package (the in-repo layout, where this adapter is checked out as
-   `<superpowers>/.dsh-plugin/`)
-5. the `skills/` directory of the dependency `superpowers` — the normal standalone path
+3. `skills/` inside this package — the normal path
+4. `../skills` beside this package — useful when a development copy sits next to a Superpowers
+   checkout
+5. the `skills/` directory of a `superpowers` package resolved as a dependency, if one is
+   installed in the profile
 
 If nothing resolves, the plugin logs a warning and degrades to bootstrap-only; it never fails
 the profile boot.
+
+### Adopting a new upstream release
+
+```bash
+git clone --depth 1 --branch vX.Y.Z https://github.com/obra/superpowers /tmp/superpowers
+node scripts/sync-skills.mjs /tmp/superpowers --check   # report drift, write nothing
+node scripts/sync-skills.mjs /tmp/superpowers           # re-copy, keeping the dsh additions
+```
+
+Then bump `version`, update `upstream.tag` and `upstream.synced` in `package.json`, review the
+diff, and run the tests. The sync script preserves `references/dsh-tools.md` and re-applies the
+platform pointer if upstream's copy of the file lacks it.
 
 ## Configuration
 
@@ -105,10 +134,8 @@ so restate every key you want to keep):
 dsh plugin --profile web add link:/path/to/dsh_superpowers   # re-link after local changes
 ```
 
-To move to a newer Superpowers release, bump the pinned tag in `package.json`
-(`"superpowers": "github:obra/superpowers#vX.Y.Z"`), reinstall, and restart. Pinning is
-deliberate: the adapter is written against a known upstream revision, and an unpinned
-dependency would change model-facing content without a version bump here.
+For a newer Superpowers release, use the sync flow above; for a newer adapter release,
+reinstall and restart the harness (the bundle layer is read at boot).
 
 ## Tests
 
@@ -117,9 +144,8 @@ node tests/test-plugin.mjs         # or: npm test / bash tests/run-tests.sh
 ```
 
 The suite fakes dsh's `skills` and `systemPrompt` services, so it needs no harness install. It
-verifies the provider contract, frontmatter edge cases, the bootstrap assembly, the tool
-mapping, and the degraded path — and, when the `superpowers` dependency is installed, that all
-14 upstream skills are discovered with their real descriptions.
+verifies the provider contract, the bundled skills tree, frontmatter edge cases, the bootstrap
+assembly, the tool mapping, and the degraded path.
 
 ## Troubleshooting
 
@@ -136,9 +162,8 @@ restart.
 
 ### "skills directory not found"
 
-The plugin could not resolve a skills root — usually because the `superpowers` dependency did
-not install (git unavailable, or no network to GitHub). Re-run the install, or point the plugin
-at a checkout:
+The plugin could not resolve a skills root — the installed package is missing its `skills/`
+tree (a partial checkout or a repackaged build). Point the plugin at a checkout instead:
 
 ```yaml
 - id: superpowers
@@ -159,11 +184,13 @@ roots (`400`/`500`) all outrank this provider (`600`), so your own skill keeps t
 ## Relationship to the in-repo port
 
 Superpowers carries an in-repo dsh port (`.dsh-plugin/` + root `cordis.patch.yml`) so a fork of
-that repository can be installed directly and an upstream PR can ship the integration. This
-package covers the other case: a standalone adapter that consumes Superpowers as a dependency
-and vendors nothing. The plugin module is the same code and resolves both layouts.
+that repository can be installed directly and an upstream PR can ship the integration there.
+This package covers the other case: a standalone plugin that carries the skills with it, so it
+installs from its own repository alone. The plugin module is the same code and resolves both
+layouts.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Superpowers itself is MIT, Copyright (c) 2025 Jesse Vincent, and
-is consumed as a dependency; see [references/CREDITS.md](references/CREDITS.md).
+MIT — see [LICENSE](LICENSE). The bundled skills tree is Superpowers, MIT, Copyright (c) 2025
+Jesse Vincent — see [LICENSE.superpowers](LICENSE.superpowers) and
+[references/CREDITS.md](references/CREDITS.md).

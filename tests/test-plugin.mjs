@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, realpathSync } from 'node:fs';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,8 +12,9 @@ const pluginPath = resolve(packageRoot, 'index.js');
 const patchPath = resolve(packageRoot, 'cordis.patch.yml');
 const toolMappingPath = resolve(packageRoot, 'references/dsh-tools.md');
 const creditsPath = resolve(packageRoot, 'references/CREDITS.md');
-const dependencySkillsDir = resolve(packageRoot, 'node_modules/superpowers/skills');
-const dependencyInstalled = existsSync(join(dependencySkillsDir, 'using-superpowers/SKILL.md'));
+const bundledSkillsDir = resolve(packageRoot, 'skills');
+const bootstrapSkillPath = resolve(bundledSkillsDir, 'using-superpowers/SKILL.md');
+const upstreamToolsPath = resolve(bundledSkillsDir, 'using-superpowers/references/dsh-tools.md');
 
 const EXPECTED_SKILLS = [
   'brainstorming',
@@ -89,7 +90,7 @@ async function makeSkillsFixture(entries) {
   return root;
 }
 
-test('package.json declares the dsh bundle, a pinned skill source and this repository', async () => {
+test('package.json declares the dsh bundle, no dependencies and the upstream provenance', async () => {
   const pkg = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'));
 
   assert.equal(pkg.name, 'dsh_superpowers');
@@ -97,13 +98,34 @@ test('package.json declares the dsh bundle, a pinned skill source and this repos
   assert.equal(pkg.repository.url, 'git+https://github.com/icanfinish11/dsh_superpowers.git');
   assert.deepEqual(pkg.exports, { '.': './index.js', './package.json': './package.json' });
   assert.ok(pkg.files.includes('references'), 'references/ ships with the package');
+  assert.ok(pkg.files.includes('skills'), 'the skills tree ships with the package');
   assert.ok(pkg.keywords.includes('dsh-plugin'));
 
-  // The skill content must come from the original author's repository, and the
-  // pin must be a tag, never a moving branch.
-  const source = pkg.dependencies.superpowers;
-  assert.match(source, /^github:obra\/superpowers#v\d+\.\d+\.\d+$/, `unpinned or unexpected skill source: ${source}`);
-  assert.deepEqual(Object.keys(pkg.dependencies), ['superpowers']);
+  // Self-contained by design: a git dependency would be an exotic subdependency,
+  // which pnpm refuses to install (ERR_PNPM_EXOTIC_SUBDEP), so the skills are
+  // bundled and the adapter itself must stay dependency-free.
+  assert.equal(pkg.dependencies, undefined);
+  assert.equal(pkg.peerDependencies, undefined);
+
+  assert.equal(pkg.upstream.repository, 'https://github.com/obra/superpowers');
+  assert.match(pkg.upstream.tag, /^v\d+\.\d+\.\d+$/, 'record the exact upstream tag the skills came from');
+  assert.match(pkg.upstream.synced, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('the bundled skills tree is complete and carries this adapter\'s dsh additions', async () => {
+  const skills = await readdir(bundledSkillsDir, { withFileTypes: true });
+  const directories = skills.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+
+  assert.deepEqual(directories, [...EXPECTED_SKILLS].sort());
+  for (const name of directories) {
+    assert.equal(existsSync(join(bundledSkillsDir, name, 'SKILL.md')), true, `${name}/SKILL.md should exist`);
+  }
+
+  // The dsh tool mapping ships inside the skills tree (so `references/dsh-tools.md`
+  // resolves from the skill's own base directory) and the skill points at it.
+  assert.equal(existsSync(upstreamToolsPath), true, 'skills/using-superpowers/references/dsh-tools.md should exist');
+  const bootstrap = await readFile(bootstrapSkillPath, 'utf8');
+  assert.match(bootstrap, /DeepSeek Harness \(dsh\): `references\/dsh-tools\.md`/);
 });
 
 test('cordis.patch.yml mounts this package by name and the entry file exists', async () => {
@@ -118,7 +140,7 @@ test('cordis.patch.yml mounts this package by name and the entry file exists', a
 });
 
 test('plugin exports the cordis shape dsh loads and injects both services', async () => {
-  const { mod } = await loadPlugin({ skillsDir: dependencySkillsDir });
+  const { mod } = await loadPlugin({ skillsDir: bundledSkillsDir });
 
   assert.equal(mod.name, 'superpowers');
   assert.deepEqual([...mod.inject], ['skills', 'systemPrompt']);
@@ -127,7 +149,7 @@ test('plugin exports the cordis shape dsh loads and injects both services', asyn
 });
 
 test('apply registers one skill provider and one bootstrap section', async () => {
-  const { providers, sections, warnings } = await loadPlugin({ skillsDir: dependencySkillsDir });
+  const { providers, sections, warnings } = await loadPlugin({ skillsDir: bundledSkillsDir });
 
   assert.equal(providers.length, 1);
   assert.equal(providers[0].name, 'superpowers');
@@ -141,8 +163,8 @@ test('apply registers one skill provider and one bootstrap section', async () =>
   assert.deepEqual(warnings, []);
 });
 
-test('the dependency skills root resolves without any config', { skip: !dependencyInstalled && 'run pnpm install first' }, async () => {
-  // No skillsDir: resolution must find the installed `superpowers` dependency.
+test('the bundled skills root resolves without any config', async () => {
+  // No skillsDir: resolution must find the skills bundled in this package.
   const { providers, warnings } = await loadPlugin();
   const candidates = await providers[0].list({ cwd: packageRoot });
 
@@ -160,7 +182,7 @@ test('the dependency skills root resolves without any config', { skip: !dependen
     // A package manager may report either the symlinked package path or the real
     // path inside its virtual store; both point at the same skill directory.
     assert.deepEqual(candidate.resourceBase, { kind: 'directory', path: dirname(candidate.path) });
-    assert.equal(realpathSync(candidate.resourceBase.path), realpathSync(join(dependencySkillsDir, candidate.name)));
+    assert.equal(realpathSync(candidate.resourceBase.path), realpathSync(join(bundledSkillsDir, candidate.name)));
     assert.equal(existsSync(candidate.path), true, `${candidate.name} locator should exist on disk`);
   }
   assert.deepEqual(warnings, []);
@@ -170,6 +192,9 @@ test('the dependency skills root resolves without any config', { skip: !dependen
     assert.ok(definition.content.length > 0, `${definition.name} body should not be empty`);
     assert.ok(!definition.content.startsWith('---'), `${definition.name} body should have frontmatter stripped`);
   }
+
+  const brainstorming = candidates.find((candidate) => candidate.name === 'brainstorming');
+  assert.match(brainstorming.description, /^You MUST use this before any creative work/);
 });
 
 test('get() strips frontmatter and bases resources at the skill directory', async () => {
@@ -204,7 +229,7 @@ test('get() strips frontmatter and bases resources at the skill directory', asyn
 });
 
 test('get() returns undefined for an unreadable locator instead of throwing', async () => {
-  const { providers, warnings } = await loadPlugin({ skillsDir: dependencySkillsDir });
+  const { providers, warnings } = await loadPlugin({ skillsDir: bundledSkillsDir });
   const definition = await providers[0].get({ locator: { path: join(packageRoot, 'nope/SKILL.md') } }, {});
 
   assert.equal(definition, undefined);
@@ -213,7 +238,7 @@ test('get() returns undefined for an unreadable locator instead of throwing', as
 });
 
 test('the bootstrap section carries the body, the marker and the dsh tool mapping', async () => {
-  const { sections } = await loadPlugin({ skillsDir: dependencySkillsDir });
+  const { sections } = await loadPlugin({ skillsDir: bundledSkillsDir });
   const text = sectionText(sections[0]);
 
   assert.ok(text.startsWith('<EXTREMELY_IMPORTANT>'));
@@ -231,7 +256,7 @@ test('the bootstrap section carries the body, the marker and the dsh tool mappin
   assert.equal(sectionText(sections[0]), text, 'assembled once per process');
 });
 
-test('the bootstrap body comes from the resolved skills root', { skip: !dependencyInstalled && 'run pnpm install first' }, async () => {
+test('the bootstrap body comes from the resolved skills root', async () => {
   const { sections } = await loadPlugin();
   const text = sectionText(sections[0]);
 
@@ -242,20 +267,20 @@ test('the bootstrap body comes from the resolved skills root', { skip: !dependen
 });
 
 test('toolMapping, skills and bootstrap can be disabled independently', async () => {
-  const noMapping = await loadPlugin({ skillsDir: dependencySkillsDir, toolMapping: false });
+  const noMapping = await loadPlugin({ skillsDir: bundledSkillsDir, toolMapping: false });
   const mappingText = sectionText(noMapping.sections[0]);
   assert.match(mappingText, /You have superpowers\./);
   assert.ok(!mappingText.includes('## dsh tool mapping'));
 
-  const noSkills = await loadPlugin({ skillsDir: dependencySkillsDir, skills: false });
+  const noSkills = await loadPlugin({ skillsDir: bundledSkillsDir, skills: false });
   assert.equal(noSkills.providers.length, 0);
   assert.equal(noSkills.sections.length, 1);
 
-  const noBootstrap = await loadPlugin({ skillsDir: dependencySkillsDir, bootstrap: false });
+  const noBootstrap = await loadPlugin({ skillsDir: bundledSkillsDir, bootstrap: false });
   assert.equal(noBootstrap.providers.length, 1);
   assert.equal(noBootstrap.sections.length, 0);
 
-  const overridden = await loadPlugin({ skillsDir: dependencySkillsDir, order: 130 });
+  const overridden = await loadPlugin({ skillsDir: bundledSkillsDir, order: 130 });
   assert.equal(overridden.sections[0].order, 130);
 });
 

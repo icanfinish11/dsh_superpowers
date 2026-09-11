@@ -1,11 +1,6 @@
 MIT License
 
-Copyright (c) 2026 icanfinish11 (this DeepSeek Harness adapter)
-
-The `skills/` tree in this repository is Superpowers, Copyright (c) 2025 Jesse
-Vincent, MIT licensed — https://github.com/obra/superpowers — copied from tag
-v6.3.0 and redistributed under the same MIT terms (see LICENSE.superpowers and
-references/CREDITS.md for the exact provenance and the two dsh-owned additions).
+Copyright (c) 2025 Jesse Vincent
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
