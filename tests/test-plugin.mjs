@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -343,6 +344,33 @@ test('a host with no skills root degrades without failing activation', async () 
     if (previous === undefined) delete process.env.SUPERPOWERS_SKILLS_DIR;
     else process.env.SUPERPOWERS_SKILLS_DIR = previous;
     await rm(isolated, { recursive: true, force: true });
+  }
+});
+
+test('scripts the skills invoke directly keep their executable bit', async (t) => {
+  // The skills call these as `scripts/<name> …`, which needs the executable bit
+  // on Unix. A copy made on Windows loses it silently, so assert the git index
+  // rather than the working tree.
+  const executable = [
+    'skills/brainstorming/scripts/start-server.sh',
+    'skills/brainstorming/scripts/stop-server.sh',
+    'skills/subagent-driven-development/scripts/review-package',
+    'skills/subagent-driven-development/scripts/sdd-workspace',
+    'skills/subagent-driven-development/scripts/task-brief',
+    'skills/systematic-debugging/find-polluter.sh',
+    'skills/writing-skills/render-graphs.js',
+    'tests/run-tests.sh',
+  ];
+  let listing;
+  try {
+    listing = execFileSync('git', ['-C', packageRoot, 'ls-files', '-s', ...executable], { encoding: 'utf8' });
+  } catch {
+    t.skip('git is not available');
+    return;
+  }
+  for (const line of listing.trim().split('\n')) {
+    const [meta, path] = line.split('\t');
+    assert.equal(meta.split(/\s+/)[0], '100755', `${path} should be recorded as executable`);
   }
 });
 
