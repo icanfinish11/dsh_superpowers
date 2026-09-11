@@ -31,10 +31,10 @@ approval and needs no network beyond the repository itself.
 
 ```bash
 # from GitHub (canonical)
-dsh plugin --profile web add icanfinish11/dsh_superpowers
+dsh plugin --profile web add icanfinish11/dsh-superpowers
 
 # from a local checkout
-dsh plugin --profile web add link:/path/to/dsh_superpowers
+dsh plugin --profile web add link:/path/to/dsh-superpowers
 ```
 
 `dsh plugin` runs pnpm inside `$DSH_HOME/profiles/<name>/` and then reconciles the profile:
