@@ -1,0 +1,40 @@
+# DeepSeek Harness (dsh) Tool Mapping
+
+Skills speak in actions ("dispatch a subagent", "create a todo", "read a file"). On the DeepSeek Harness these resolve to the tools below. The same mapping is inlined into the bootstrap the dsh plugin injects each session — keep both in sync when either changes.
+
+| Action skills request | dsh equivalent |
+| --- | --- |
+| Invoke a skill | The `skill` tool, with the exact kebab-case skill name (`brainstorming`, `test-driven-development`) |
+| Create a todo / mark complete (`TodoWrite`) | `todo_write` |
+| Read a file | `read` |
+| Create a file | `write` |
+| Edit a file | `edit` |
+| Delete a file | `pwsh` on Windows, `bash` on Unix |
+| Run a shell command (`Bash`) | `pwsh` on Windows, `bash` on Unix; `run_in_background: true` for long commands, then `job_output` / `job_kill` |
+| Search file contents (`Grep`) | `grep` |
+| Find files by name (`Glob`) | `glob` |
+| Fetch a URL (`WebFetch`) / search the web | `web_search`; `read_page` when that tool is available for one specific page |
+| Dispatch a subagent (`Task (general-purpose):`, `Subagent (general-purpose):`) | `subagent` (background by default) or `subagent_fork` when the child must inherit this conversation; `workflow` for large planned fan-outs; `ralph` when a fresh agent must iterate on one objective |
+| Ask your human partner a question | `ask_user_question` |
+| Present a plan for approval | dsh plan mode — `exit_plan_mode` hands the plan to your human partner |
+| Track a long-running objective | The goal tools: `create_goal`, `get_goal`, `update_goal` |
+
+## Skills
+
+dsh has a native skill system: this plugin registers Superpowers' `skills/` directory as a skill provider, so the skill catalog the session receives lists every Superpowers skill and the `skill` tool loads one by name. Names carry no `superpowers:` prefix on dsh — `superpowers:brainstorming` in older prose is simply `brainstorming` here.
+
+Loading a skill's `SKILL.md` with `read` is **not** the mechanism on dsh. Use the `skill` tool; it returns the same body plus the base directory that the skill's relative resources (`scripts/…`, `references/…`, `*-prompt.md`) resolve against.
+
+The `using-superpowers` skill is injected as the session's bootstrap and is already active — do not spend a `skill` call re-loading it.
+
+## Subagents
+
+dsh ships `subagent` (a separate agent with its own context; background by default, continuable with `send_message`) and `subagent_fork` (a child seeded with the current conversation). Superpowers' `subagent-driven-development`, `dispatching-parallel-agents`, and `requesting-code-review` skills work with either: dispatch one subagent per task, give it the complete task text and the review prompts the skill names, and act on the report it returns. `workflow` runs a JavaScript script that fans work out across many subagents when the plan calls for large-scale parallel work.
+
+## Task lists
+
+`todo_write` is dsh's task list. Superpowers skills that mention `TodoWrite` (or "create a todo per item") mean this tool: send the complete list on every call, one item per checklist entry, and mark an item complete the moment it is done.
+
+## Background work
+
+Long shell commands and agents run as managed background jobs. Start them with `run_in_background: true`, read progress with `job_output` (use `wait: true` only when genuinely blocked), and stop them with `job_kill`. Never busy-poll a job you started.

@@ -1,0 +1,50 @@
+{
+  "name": "dsh_superpowers",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness adapter for Superpowers: registers the Superpowers skills as a dsh skill catalog and injects the using-superpowers bootstrap into the system prompt.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "references",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "superpowers",
+    "skills",
+    "brainstorming",
+    "tdd",
+    "debugging",
+    "workflow"
+  ],
+  "license": "MIT",
+  "author": "icanfinish11 <2073582478@qq.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icanfinish11/dsh_superpowers.git"
+  },
+  "homepage": "https://github.com/icanfinish11/dsh_superpowers#readme",
+  "bugs": "https://github.com/icanfinish11/dsh_superpowers/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/test-plugin.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "superpowers": "github:obra/superpowers#v6.3.0"
+  }
+}
