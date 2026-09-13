@@ -1,7 +1,7 @@
 {
-  "name": "dsh_superpowers",
+  "name": "dsh-superpowers",
   "version": "0.1.0",
-  "description": "Superpowers for the DeepSeek Harness: registers the Superpowers skills as a dsh skill catalog and injects the using-superpowers bootstrap into the system prompt.",
+  "description": "Adds the Superpowers skills to the DeepSeek Harness (dsh), where they trigger automatically.",
   "type": "module",
   "main": "index.js",
   "exports": {

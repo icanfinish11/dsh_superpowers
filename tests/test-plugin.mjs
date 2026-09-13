@@ -94,7 +94,7 @@ async function makeSkillsFixture(entries) {
 test('package.json declares the dsh bundle, no dependencies and the upstream provenance', async () => {
   const pkg = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'));
 
-  assert.equal(pkg.name, 'dsh_superpowers');
+  assert.equal(pkg.name, 'dsh-superpowers');
   assert.deepEqual(pkg.dsh, { bundle: { patch: './cordis.patch.yml' } });
   assert.equal(pkg.repository.url, 'git+https://github.com/icanfinish11/dsh_superpowers.git');
   assert.deepEqual(pkg.exports, { '.': './index.js', './package.json': './package.json' });

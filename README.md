@@ -1,13 +1,17 @@
-# dsh_superpowers
+# dsh-superpowers
 
-[Superpowers](https://github.com/obra/superpowers) for the **DeepSeek Harness (dsh)** — a
-self-contained dsh plugin package that
+**Superpowers for the DeepSeek Harness (dsh).** Install it and your dsh agent gets all 14
+[Superpowers](https://github.com/obra/superpowers) skills — brainstorming, planning, TDD,
+debugging and the rest — and uses them by itself: when a task matches a skill, the agent loads
+it before acting.
 
-1. registers the Superpowers skills as a dsh **skill catalog** (14 skills, loaded with dsh's
-   native `skill` tool, with each skill's directory handed to the model as its resource base), and
-2. injects the **`using-superpowers` bootstrap** — plus a dsh tool mapping — as an always-on
-   system-prompt section, so the skills auto-trigger from the first turn of every session with
-   no per-session opt-in.
+Two pieces do that:
+
+1. **The skills are added to dsh's skill catalog**, so the agent sees them and loads any of
+   them with dsh's own `skill` tool. Each skill keeps its own directory, so the scripts,
+   prompts and templates it refers to resolve to their real location.
+2. **A short "you have superpowers" bootstrap is added to the system prompt**, so the skills
+   trigger from the first turn of every session — no setup, no per-session opt-in.
 
 The package has **no dependencies** and needs no build step. The skills travel inside it:
 `skills/` is a verbatim copy of the upstream Superpowers skills tree at the tag recorded in
@@ -30,11 +34,12 @@ newer. The adapter is dependency-free and pure JS, so installation never trigger
 approval and needs no network beyond the repository itself.
 
 ```bash
-# from GitHub (canonical)
-dsh plugin --profile web add icanfinish11/dsh-superpowers
+# from GitHub (canonical) — the repository is icanfinish11/dsh_superpowers;
+# it installs the package dsh-superpowers
+dsh plugin --profile web add icanfinish11/dsh_superpowers
 
 # from a local checkout
-dsh plugin --profile web add link:/path/to/dsh-superpowers
+dsh plugin --profile web add link:/path/to/dsh_superpowers
 ```
 
 `dsh plugin` runs pnpm inside `$DSH_HOME/profiles/<name>/` and then reconciles the profile:

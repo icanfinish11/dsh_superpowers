@@ -2,10 +2,10 @@
 
 ## This repository
 
-`dsh_superpowers` is an independent DeepSeek Harness adapter by **icanfinish11**.
-It contains the dsh integration — the plugin module, the dsh bundle patch, the
-dsh tool mapping, tests and docs — together with a copy of the Superpowers
-skills, described below.
+`dsh-superpowers` is an independent DeepSeek Harness adapter by **icanfinish11**
+(repository: <https://github.com/icanfinish11/dsh_superpowers>). It contains the
+dsh integration — the plugin module, the dsh bundle patch, the dsh tool mapping,
+tests and docs — together with a copy of the Superpowers skills, described below.
 
 ## Upstream
 

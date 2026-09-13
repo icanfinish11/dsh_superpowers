@@ -1,9 +1,9 @@
-# dsh_superpowers bundle patch for DeepSeek Harness profiles.
+# dsh-superpowers bundle patch for DeepSeek Harness profiles.
 #
 # Applied automatically when this package is installed through dsh's own plugin
 # command — for example
 #
-#   dsh plugin --profile web add icanfinish11/dsh_superpowers
+#   dsh plugin --profile web add icanfinish11/dsh_superpowers   # repo → package dsh-superpowers
 #   dsh plugin --profile web add link:/path/to/dsh_superpowers
 #
 # The dsh CLI appends every dependency that declares `dsh.bundle` (see
@@ -12,16 +12,16 @@
 # user's config: the install artifact is the install itself.
 #
 # The row mounts `index.js`, which
-#   1. registers the skills of the dependency `superpowers` (the original
-#      author's repository, pinned in package.json) as a dsh skill provider, so
-#      the 14 Superpowers skills load with dsh's native `skill` tool, and
+#   1. registers the 14 bundled Superpowers skills (from this package's own
+#      `skills/` tree) as a dsh skill provider, so they load with dsh's native
+#      `skill` tool, and
 #   2. contributes the `using-superpowers` bootstrap — with the dsh tool
 #      mapping — as the `superpowers:bootstrap` system-prompt section, so skills
 #      auto-trigger from the first turn of every session with no opt-in.
 
 - insert:
     - id: superpowers
-      name: 'dsh_superpowers'
+      name: 'dsh-superpowers'
       config:
         # Register the skills catalog. false = bootstrap only.
         skills: true
@@ -33,5 +33,6 @@
         # 100-199 is the tool-and-behavior guidance band).
         order: 121
         # Skills root. Empty = resolve automatically: config → SUPERPOWERS_SKILLS_DIR
-        # → <package>/skills → <package>/../skills → the `superpowers` dependency.
+        # → <package>/skills (the bundled tree) → <package>/../skills → an
+        # installed `superpowers` dependency, if there is one.
         skillsDir: ''
