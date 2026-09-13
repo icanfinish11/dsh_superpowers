@@ -110,6 +110,7 @@ test('package.json declares the dsh bundle, no dependencies and the upstream pro
 
   assert.equal(pkg.upstream.repository, 'https://github.com/obra/superpowers');
   assert.match(pkg.upstream.tag, /^v\d+\.\d+\.\d+$/, 'record the exact upstream tag the skills came from');
+  assert.match(pkg.upstream.commit, /^[0-9a-f]{40}$/, 'record the exact upstream commit, not just the tag');
   assert.match(pkg.upstream.synced, /^\d{4}-\d{2}-\d{2}$/);
 });
 

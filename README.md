@@ -5,11 +5,13 @@
 debugging and the rest — and uses them by itself: when a task matches a skill, the agent loads
 it before acting.
 
-The bundled tree is **pinned to a recorded upstream tag** (`upstream.tag` in `package.json`,
-currently `v6.3.0`) and **re-syncable**: `npm run sync-skills --check` reports how far the copy
-has drifted from a newer checkout, and `npm run sync-skills` adopts it while keeping this
-adapter's own additions. Nothing changes under the model's feet between releases, and nothing
-drifts silently.
+The bundled tree is **pinned to a recorded upstream revision** — `upstream.tag` and
+`upstream.commit` in `package.json` (currently `v6.3.0`,
+`b36e0829c6d0140e93cfef2ca599b1b07d4a7797`) — and **re-syncable**:
+`npm run sync-skills --check` reports how far the copy has drifted from a newer checkout
+(per file, non-zero exit) and whether the checkout still matches the recorded pin, and
+`npm run sync-skills` adopts a newer tree while keeping this adapter's own additions. Nothing
+changes under the model's feet between releases, and nothing drifts silently.
 
 Two pieces do that:
 
