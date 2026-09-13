@@ -1,7 +1,7 @@
 {
   "name": "dsh-superpowers",
   "version": "0.1.0",
-  "description": "Adds the Superpowers skills to the DeepSeek Harness (dsh), where they trigger automatically.",
+  "description": "Bundles the 14 obra/superpowers skills for the DeepSeek Harness (dsh) from a recorded upstream tag (v6.3.0), re-syncable with drift reporting.",
   "type": "module",
   "main": "index.js",
   "exports": {

@@ -5,6 +5,12 @@
 debugging and the rest — and uses them by itself: when a task matches a skill, the agent loads
 it before acting.
 
+The bundled tree is **pinned to a recorded upstream tag** (`upstream.tag` in `package.json`,
+currently `v6.3.0`) and **re-syncable**: `npm run sync-skills --check` reports how far the copy
+has drifted from a newer checkout, and `npm run sync-skills` adopts it while keeping this
+adapter's own additions. Nothing changes under the model's feet between releases, and nothing
+drifts silently.
+
 Two pieces do that:
 
 1. **The skills are added to dsh's skill catalog**, so the agent sees them and loads any of
